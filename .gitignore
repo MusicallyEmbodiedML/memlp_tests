@@ -1,0 +1,20 @@
+# CMake build directories
+build/
+build-*/
+cmake-build-*/
+
+# Compiled artefacts
+*.o
+*.elf
+*.uf2
+*.bin
+*.dis
+*.map
+*.hex
+
+# Editor / OS
+.vscode/
+.cache/
+compile_commands.json
+*.swp
+.DS_Store

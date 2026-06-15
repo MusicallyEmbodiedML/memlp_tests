@@ -1,0 +1,3 @@
+[submodule "memlp"]
+	path = memlp
+	url = https://github.com/MusicallyEmbodiedML/memlp
