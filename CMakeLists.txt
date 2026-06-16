@@ -20,6 +20,7 @@
 cmake_minimum_required(VERSION 3.13)
 
 option(MEMLP_TESTS_PICO "Build tests for RP2040/RP2350 using the Raspberry Pi Pico SDK" OFF)
+option(MEMLP_BENCH "Build the on-device dynamic-vs-static benchmark instead of the test runner (Pico only)" OFF)
 
 set(MEMLP_DIR ${CMAKE_CURRENT_LIST_DIR}/memlp)
 
@@ -29,6 +30,7 @@ set(MEMLP_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/tests/test_loss.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tests/test_layer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tests/test_mlp.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tests/test_static_mlp.cpp
 )
 
 # Library sources: everything else is header-only; MLP.cpp holds the
@@ -57,16 +59,28 @@ if(MEMLP_TESTS_PICO)
     project(memlp_tests C CXX ASM)
     pico_sdk_init()
 
-    add_executable(memlp_tests
-        ${CMAKE_CURRENT_LIST_DIR}/pico_main.cpp
-        ${MEMLP_TEST_SOURCES}
-        ${MEMLP_LIB_SOURCES}
-    )
+    if(MEMLP_BENCH)
+        add_executable(memlp_tests
+            ${CMAKE_CURRENT_LIST_DIR}/pico_bench.cpp
+            ${MEMLP_LIB_SOURCES}
+        )
+        pico_set_program_name(memlp_tests "memlp_bench")
+    else()
+        add_executable(memlp_tests
+            ${CMAKE_CURRENT_LIST_DIR}/pico_main.cpp
+            ${MEMLP_TEST_SOURCES}
+            ${MEMLP_LIB_SOURCES}
+        )
+        # The host build installs a global operator-new tripwire to prove the hot
+        # paths don't allocate; the Pico SDK provides its own new/delete, so that
+        # check (and its tests) are compiled out on device.
+        target_compile_definitions(memlp_tests PRIVATE MEMLP_TESTS_EMBEDDED)
+        pico_set_program_name(memlp_tests "memlp_tests")
+    endif()
     target_include_directories(memlp_tests PRIVATE
         ${MEMLP_DIR}
         ${CMAKE_CURRENT_LIST_DIR}/tests
     )
-    pico_set_program_name(memlp_tests "memlp_tests")
     pico_enable_stdio_usb(memlp_tests 1)
     pico_enable_stdio_uart(memlp_tests 0)
     target_link_libraries(memlp_tests pico_stdlib pico_rand)

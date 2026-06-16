@@ -13,6 +13,16 @@
 #include "pico/stdlib.h"
 #include "pico/rand.h"
 #include "test_framework.h"
+#include "StaticMLP.h"
+
+// File-scope static network: demonstrates the whole point of StaticMLP — all of
+// its weights/biases/buffers live in .bss (allocated at link time, zeroed at
+// boot), with zero heap use. Inspect memlp_tests.elf.map for g_demo_net.
+static smlp::StaticMLP<float,
+                       smlp::Layout<8, 16, 8, 4>,
+                       smlp::Activations<ACTIVATION_FUNCTIONS::RELU,
+                                         ACTIVATION_FUNCTIONS::RELU,
+                                         ACTIVATION_FUNCTIONS::LINEAR>> g_demo_net;
 
 /**
  * The MLP constructor instantiates std::random_device, whose libstdc++
@@ -37,6 +47,16 @@ int main() {
 
     printf("\n\n");
     int failed = tf::run_all_tests();
+
+    // Exercise the file-scope static net so the linker keeps it (proving the
+    // .bss-resident, heap-free network actually runs on device).
+    g_demo_net.SetSeed(get_rand_32());
+    g_demo_net.RandomiseWeightsAndBiasesLin(-0.5f, 0.5f, -0.1f, 0.1f);
+    std::array<float, 8> demo_in{0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
+    std::array<float, 4> demo_out{};
+    g_demo_net.GetOutput(demo_in, demo_out);
+    printf("g_demo_net out: %.3f %.3f %.3f %.3f\n",
+           demo_out[0], demo_out[1], demo_out[2], demo_out[3]);
 
     // Park here, repeating the verdict so it's visible whenever you connect.
     while (true) {

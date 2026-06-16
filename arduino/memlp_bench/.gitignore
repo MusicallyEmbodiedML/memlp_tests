@@ -1,0 +1,5 @@
+# Library sources copied in by populate.sh (single source of truth = memlp submodule)
+*.h
+*.hpp
+*.cpp
+utils/
