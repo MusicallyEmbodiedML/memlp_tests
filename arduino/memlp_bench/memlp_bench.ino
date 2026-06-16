@@ -15,11 +15,26 @@
  */
 
 #include <Arduino.h>
+// arduino-pico defines abs()/round() (and min/max) as C-style macros on the
+// RISC-V core, which collide with the STL <random>/<cmath> headers the MLP
+// pulls in. Drop the macros before including the library (it uses std:: calls).
+#undef abs
+#undef round
+#undef min
+#undef max
+
 #include <array>
 #include <vector>
 
 #include "MLP.h"
 #include "StaticMLP.h"
+
+// Which dot-product path the layers actually compile to (matches Layer.h guard).
+#if defined(ARM_MATH_CM33) && defined(__arm__)
+  #define MEMLP_DOTPATH "CMSIS-DSP arm_dot_prod_f32 (FPU)"
+#else
+  #define MEMLP_DOTPATH "scalar"
+#endif
 
 static constexpr size_t NI = 8, NH1 = 16, NH2 = 16, NO = 4;
 
@@ -73,9 +88,9 @@ void loop() {
 
     Serial.println();
     Serial.println("==== MEMLNaut (RP2350) dynamic vs static benchmark ====");
-    Serial.printf("f_cpu=%lu Hz | arch {%u,%u,%u,%u} RELU,RELU,LINEAR | iters=%d | ARM_MATH_CM33 on\n",
+    Serial.printf("f_cpu=%lu Hz | arch {%u,%u,%u,%u} RELU,RELU,LINEAR | iters=%d | dot path: %s\n",
                   (unsigned long)F_CPU, (unsigned)NI, (unsigned)NH1, (unsigned)NH2,
-                  (unsigned)NO, N);
+                  (unsigned)NO, N, MEMLP_DOTPATH);
     Serial.printf("sizeof(MLP<float>)=%u B (+heap)   sizeof(StaticMLP)=%u B (.bss)\n",
                   (unsigned)sizeof(MLP<float>), (unsigned)sizeof(Static));
 
