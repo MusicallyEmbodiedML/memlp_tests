@@ -31,6 +31,7 @@ set(MEMLP_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/tests/test_layer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tests/test_mlp.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tests/test_static_mlp.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tests/test_static_mlp_fixed.cpp
 )
 
 # Library sources: everything else is header-only; MLP.cpp holds the
@@ -83,6 +84,9 @@ if(MEMLP_TESTS_PICO)
     )
     pico_enable_stdio_usb(memlp_tests 1)
     pico_enable_stdio_uart(memlp_tests 0)
+    # No hardware_interp: the fixed-point MLP uses a plain 32-bit integer MAC, not
+    # the interpolator. fixedpoint.hpp's interp helpers are opt-in behind
+    # FIXEDPOINT_USE_HW_INTERP (add it + hardware_interp here to use them).
     target_link_libraries(memlp_tests pico_stdlib pico_rand)
     pico_add_extra_outputs(memlp_tests)   # .uf2, .elf, .bin, map, dis
 

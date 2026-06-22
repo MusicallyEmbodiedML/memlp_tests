@@ -23,7 +23,7 @@ using smlp::Activations;
 // Host-only: the Pico SDK supplies its own operator new/delete. The no-heap
 // guarantee transfers to the embedded build since it is the identical code.
 #ifndef MEMLP_TESTS_EMBEDDED
-static volatile bool g_alloc_seen = false;
+volatile bool g_alloc_seen = false;   // external linkage: shared with test_static_mlp_fixed.cpp
 void* operator new(std::size_t n)            { g_alloc_seen = true; return std::malloc(n ? n : 1); }
 void* operator new[](std::size_t n)          { g_alloc_seen = true; return std::malloc(n ? n : 1); }
 void  operator delete(void* p) noexcept      { std::free(p); }
@@ -410,6 +410,25 @@ TEST(static_mlp, training_step_does_not_allocate) {
     CHECK_FALSE(g_alloc_seen);
 }
 #endif // !MEMLP_TESTS_EMBEDDED
+
+TEST(static_mlp, flat_weight_accessor) {
+    using Net = smlp::StaticMLP<float, Layout<2, 3, 1>,
+                                Activations<ACTIVATION_FUNCTIONS::RELU,
+                                            ACTIVATION_FUNCTIONS::LINEAR>>;
+    Net net;
+    // layer0: 3*2=6 weights, layer1: 1*3=3 -> total 9
+    CHECK_EQ(Net::TotalWeights(), (size_t)9);
+    // Write each weight via the flat accessor...
+    for (std::size_t g = 0; g < Net::TotalWeights(); ++g) {
+        float* w = net.WeightPtrAt(g);
+        CHECK(w != nullptr);
+        *w = (float)g;
+    }
+    CHECK(net.WeightPtrAt(9) == nullptr);   // out of range
+    // ...and confirm layer 0 (first 6) and layer 1 (next 3) see them in order.
+    for (std::size_t k = 0; k < 6; ++k) CHECK_CLOSE(net.layer<0>().m_weights[k], (float)k, 1e-6);
+    for (std::size_t k = 0; k < 3; ++k) CHECK_CLOSE(net.layer<1>().m_weights[k], (float)(6 + k), 1e-6);
+}
 
 TEST(static_mlp, weights_round_trip) {
     smlp::StaticMLP<float, Layout<2, 3, 2>,
